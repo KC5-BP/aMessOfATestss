@@ -1,3 +1,11 @@
+/**
+ * Use QByteArray type to exchange between Server and Client,
+ * as a QString stores character in 16bits
+ * instead of 8bits, like a classic "char *" in C
+ *
+ * Thus, enabling C socket client programming simplification
+ * as it does not need to take one character over 2 [i*2]
+ */
 #include "client.h"
 
 #include <QGridLayout>
@@ -117,8 +125,8 @@ void Client::displayError(QAbstractSocket::SocketError socketError) {
 void Client::readSrvResponse(void) {
     inStream.startTransaction();
 
-    QString streamAsString;
-    inStream >> streamAsString;
+    QByteArray streamAsBytes;
+    inStream >> streamAsBytes;
 
     if ( ! inStream.commitTransaction() )   return;
 
@@ -126,12 +134,12 @@ void Client::readSrvResponse(void) {
      *  + toLower() Hypothesis:
      *  Upper -> Lower is optimized because UpperCase + offset = LowerCase
      *  instead of a substraction LowerCase - offset = UpperCase */
-    if (streamAsString.toLower() == QString("leaving"))
+    if (streamAsBytes.toLower() == QByteArray("leaving"))
         toggleConnection(false);    /* A bit dirty, but for testing,
                                      * it does the trick
                                      * => Real action is closing connection */
 
-    dataRecvTxtBox->append("SRV: " + streamAsString);
+    dataRecvTxtBox->append(QString("SRV: %1").arg(streamAsBytes));
 }
 
 void Client::sendToServer(void) {
@@ -139,10 +147,10 @@ void Client::sendToServer(void) {
     QDataStream out(&block, QIODevice::WriteOnly);
 
     /* /!\ Does not work properly using C string (out << "Hi";) /!\ */
-    out << dataToSendLinEdit->text();
+    out << dataToSendLinEdit->text().toUtf8();
 
     /* Check input to also toggle connection Client side if entered manually */
-    if (dataToSendLinEdit->text() == "Leaving")
+    if (dataToSendLinEdit->text().toLower() == QString("leaving"))
         toggleConnection();
 
     tcpSocket->write(block);
@@ -168,7 +176,7 @@ void Client::toggleConnection(bool notifyServer) {
             QDataStream out(&block, QIODevice::WriteOnly);
 
             /* /!\ Does not work properly using C string (out << "Hi";) /!\ */
-            out << QString("Leaving");
+            out << QByteArray("Leaving");
 
             tcpSocket->write(block);
             tcpSocket->flush();
