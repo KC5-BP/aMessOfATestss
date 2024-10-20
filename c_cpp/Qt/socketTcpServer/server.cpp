@@ -1,14 +1,22 @@
+/**
+ * Use QByteArray type to exchange between Server and Client,
+ * as a QString stores character in 16bits
+ * instead of 8bits, like a classic "char *" in C
+ *
+ * Thus, enabling C socket client programming simplification
+ * as it does not need to take one character over 2 [i*2]
+ */
 #include "server.h"
 
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
-#include <QTextEdit>
 #include <QtNetwork/QTcpServer>
 #include <QtNetwork/QTcpSocket>
 #include <QtNetwork/QNetworkInterface>
-#include <QMessageBox>
+#include <QTextEdit>
 
 Server::Server(QWidget *parent) : QDialog(parent) {
     /* *** Interactives ****** */
@@ -77,8 +85,8 @@ Server::~Server() {
 void Server::readCltRequest(void) {
     inStream.startTransaction();
 
-    QString streamAsString;
-    inStream >> streamAsString;
+    QByteArray streamAsBytes;
+    inStream >> streamAsBytes;
 
     if ( ! inStream.commitTransaction() )   return;
 
@@ -86,12 +94,12 @@ void Server::readCltRequest(void) {
      *  + toLower() Hypothesis:
      *  Upper -> Lower is optimized because UpperCase + offset = LowerCase
      *  instead of a substraction LowerCase - offset = UpperCase */
-    if (streamAsString.toLower() == QString("leaving")) {
+    if (streamAsBytes.toLower() == QByteArray("leaving")) {
         cltConnection = nullptr;
         sendDataBtn->setEnabled(false);
     }
 
-    dataRecvTxtBox->append("CLT: " + streamAsString);
+    dataRecvTxtBox->append(QString("CLT: %1").arg(streamAsBytes));
 }
 
 void Server::sendToClient(void) {
@@ -102,7 +110,7 @@ void Server::sendToClient(void) {
     QDataStream out(&block, QIODevice::WriteOnly);
 
     /* /!\ Doesn't work properly using C string (out << "Hi";) /!\ */
-    out << dataToSendLinEdit->text();
+    out << dataToSendLinEdit->text().toUtf8();
 
     cltConnection->write(block);
     cltConnection->flush();
@@ -119,7 +127,7 @@ void Server::connectionSucessToClient(void) {
     QDataStream out(&block, QIODevice::WriteOnly);
 
     /* /!\ Doesn't work properly using C string (out << "Hi";) /!\ */
-    out << QString("Connection successful");
+    out << QByteArray("Connection successful");
 
     if ( ! cltConnection ) {
         cltConnection = tcpServer->nextPendingConnection();
@@ -167,7 +175,7 @@ void Server::toggleConnection(void) {
             QDataStream out(&block, QIODevice::WriteOnly);
 
             /* /!\ Does not work properly using C string (out << "Hi";) /!\ */
-            out << QString("Leaving");
+            out << QByteArray("Leaving");
 
             cltConnection->write(block);
             cltConnection->flush();
