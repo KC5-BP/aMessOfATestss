@@ -114,9 +114,8 @@ int main(int argc, char **argv) {
 		 * and my machine is Little Endian ordered
 		 * That's why (uint32_t *)buff might not work as it may
 		 * "invert" the value,
-		 * e.g. Get "0x2A00" instead of the correct value "0x002A"
-		 * >>1 = /2 as QString stores character as 16bits */
-		dataLen = __cpu_to_be32p((uint32_t *)buff) >> 1;
+		 * e.g. Get "0x2A00" instead of the correct value "0x002A" */
+		dataLen = __cpu_to_be32p((uint32_t *)buff);
 		DBG("Server's response (length: %d, actual data: %d):\n",
 		    streamLen, dataLen);
 
@@ -130,18 +129,11 @@ int main(int argc, char **argv) {
 
 		printf("SVR: ");
 		for (i = 0; i < dataLen; i++)
-			printf("%c", (buff+5)[i*2]);
+			printf("%c", (buff+4)[i]);
 		printf("\n");
 
 		/* Detect leaving message */
-		if ((dataLen == 7) &&
-		    (buff[ 5] == 'L') &&
-		    (buff[ 7] == 'e') &&
-		    (buff[ 9] == 'a') &&
-		    (buff[11] == 'v') &&
-		    (buff[13] == 'i') &&
-		    (buff[15] == 'n') &&
-		    (buff[17] == 'g')) {
+		if ((dataLen == 7) && ( ! strncmp(buff+4, "Leaving", 7) )) {
 			leaveFromClt = 0;
 			running = 0;
 		}
@@ -150,8 +142,7 @@ int main(int argc, char **argv) {
 	if (leaveFromClt) {
 		/* Leaving message (matching QDataStream format)
 		 * to properly close connection on server's side */
-		if (send(socketFd, (void *) "\0\0\0\x0E\0L\0e\0a\0v\0i\0n\0g",
-			 18, 0) != 18)
+		if (send(socketFd, (void *) "\0\0\0\x07Leaving", 11, 0) != 11)
 			fprintf(stderr, "Sending failed\n");
 	}
 
